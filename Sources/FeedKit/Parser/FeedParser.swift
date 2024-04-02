@@ -22,15 +22,14 @@
 //  SOFTWARE.
 //
 
-import Foundation
 import Dispatch
+import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
 /// An RSS and Atom feed parser. `FeedParser` uses `Foundation`'s `XMLParser`.
 public class FeedParser {
-    
     private var data: Data?
     private var url: URL?
     private var xmlStream: InputStream?
@@ -45,7 +44,7 @@ public class FeedParser {
         self.url = URL
     }
     
-    /// Initializes the parser with the xml or json contents encapsulated in a 
+    /// Initializes the parser with the xml or json contents encapsulated in a
     /// given data object.
     ///
     /// - Parameter data: XML or JSON data
@@ -65,7 +64,6 @@ public class FeedParser {
     ///
     /// - Returns: The parsed `Result`.
     public func parse() -> Result<Feed, ParserError> {
-        
         if let url = url {
             // The `Data(contentsOf:)` initializer doesn't handle the `feed` URI scheme. As such,
             // it's sanitized first, in case it's in fact a `feed` scheme.
@@ -86,7 +84,7 @@ public class FeedParser {
             }
             switch feedDataType {
             case .json: parser = JSONFeedParser(data: data)
-            case .xml:  parser = XMLFeedParser(data: data)
+            case .xml: parser = XMLFeedParser(data: data)
             }
             return parser!.parse()
         }
@@ -97,7 +95,6 @@ public class FeedParser {
         }
         
         return .failure(.internalError(reason: "Fatal error. Unable to parse from the initialized state."))
-        
     }
     
     /// Starts parsing the feed asynchronously. Parsing runs by default on the
@@ -128,4 +125,31 @@ public class FeedParser {
         xmlFeedParser.xmlParser.abortParsing()
     }
     
+    public func parse2() async -> Result<Feed, ParserError> {
+        if let url = url {
+            do {
+                (data, _) = try await URLSession.shared.data(from: url)
+            } catch {
+                return .failure(.internalError(reason: error.localizedDescription))
+            }
+        }
+        
+        if let data = data {
+            guard let feedDataType = FeedDataType(data: data) else {
+                return .failure(.feedNotFound)
+            }
+            switch feedDataType {
+            case .json: parser = JSONFeedParser(data: data)
+            case .xml: parser = XMLFeedParser(data: data)
+            }
+            return parser!.parse()
+        }
+        
+        if let xmlStream = xmlStream {
+            parser = XMLFeedParser(stream: xmlStream)
+            return parser!.parse()
+        }
+        
+        return .failure(.internalError(reason: "Fatal error. Unable to parse from the initialized state."))
+    }
 }
