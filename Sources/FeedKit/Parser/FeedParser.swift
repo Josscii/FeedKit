@@ -125,10 +125,14 @@ public class FeedParser {
         xmlFeedParser.xmlParser.abortParsing()
     }
     
-    public func parse2() async -> Result<Feed, ParserError> {
+    public func parse2(timeoutInterval: TimeInterval = 0) async -> Result<Feed, ParserError> {
         if let url = url {
             do {
-                (data, _) = try await URLSession.shared.data(from: url)
+                var request = URLRequest(url: url)
+                if timeoutInterval > 0 {
+                    request.timeoutInterval = timeoutInterval
+                }
+                (data, _) = try await URLSession.shared.data(for: request)
             } catch {
                 return .failure(.internalError(reason: error.localizedDescription))
             }
